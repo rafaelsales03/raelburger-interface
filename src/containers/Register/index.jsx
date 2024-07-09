@@ -17,11 +17,11 @@ import {
   Link,
 } from './styles';
 
-export function Login() {
+export function Register() {
   const navigate = useNavigate();
-
   const schema = yup
     .object({
+      name: yup.string().required('O nome é Obrigatório'),
       email: yup
         .string()
         .email('Digite um e-mail válido')
@@ -30,6 +30,10 @@ export function Login() {
         .string()
         .min(6, 'A senha deve ter pelo menos 6 caracteres')
         .required('A senha é obrigatório'),
+      confirmPassword: yup
+        .string()
+        .oneOf([yup.ref('password')], 'As senhas devem ser iguais')
+        .required('Confirme sua senha'),
     })
     .required();
 
@@ -41,26 +45,32 @@ export function Login() {
     resolver: yupResolver(schema),
   });
   const onSubmit = async (data) => {
-    const response = await toast.promise(
-      api.post('/session', {
-        email: data.email,
-        password: data.password,
-      }),
-      {
-        pending: 'Verificando seus dados',
-        success: {
-          render() {
-            setTimeout(() => {
-              navigate('/');
-            }, 2000);
-            return 'Seja Bem-vindo(a) 👌';
-          },
+    try {
+      const { status } = await api.post(
+        '/users',
+        {
+          name: data.name,
+          email: data.email,
+          password: data.password,
         },
-        error: 'Email ou Senha Incorretos 🤯',
-      },
-    );
+        {
+          validateStatus: () => true,
+        },
+      );
 
-    console.log(response);
+      if (status === 200 || status === 201) {
+        setTimeout(() => {
+          navigate('/login');
+        }, 2000);
+        toast.success('Conta criada com sucesso!');
+      } else if (status === 409) {
+        toast.error('Email já Cadastrado! Faça o Login para Continuar');
+      } else {
+        throw new Error();
+      }
+    } catch (error) {
+      toast.error('😭 Falha no Sistema! Tente novamente');
+    }
   };
 
   return (
@@ -70,12 +80,15 @@ export function Login() {
       </LeftContainer>
 
       <RightContainer>
-        <Title>
-          Olá, seja bem vindo ao <span>Rael Burguer!</span> <br />
-          Acesse com seu <span> Login e senha.</span>
-        </Title>
+        <Title>Criar Conta</Title>
 
         <Form onSubmit={handleSubmit(onSubmit)}>
+          <InputContainer>
+            <label>Nome</label>
+            <input type="text" {...register('name')} />
+            <p>{errors?.name?.message}</p>
+          </InputContainer>
+
           <InputContainer>
             <label>Email</label>
             <input type="email" {...register('email')} />
@@ -88,11 +101,17 @@ export function Login() {
             <p>{errors?.password?.message}</p>
           </InputContainer>
 
-          <Button type="submit">Entrar</Button>
+          <InputContainer>
+            <label>Confirmar Senha</label>
+            <input type="password" {...register('confirmPassword')} />
+            <p>{errors?.confirmPassword?.message}</p>
+          </InputContainer>
+
+          <Button type="submit">Criar Conta</Button>
         </Form>
 
         <p>
-          Não possui conta? <Link to="/cadastro">Clique aqui.</Link>
+          Já possui conta? <Link to="/login">Clique aqui.</Link>
         </p>
       </RightContainer>
     </Container>
